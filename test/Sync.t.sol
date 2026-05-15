@@ -18,7 +18,6 @@ import {CurrencyReserves} from "../src/libraries/CurrencyReserves.sol";
 import {StateLibrary} from "../src/libraries/StateLibrary.sol";
 import {TransientStateLibrary} from "../src/libraries/TransientStateLibrary.sol";
 import {NativeERC20} from "../src/test/NativeERC20.sol";
-import {IPoolManager} from "../src/interfaces/IPoolManager.sol";
 import {CurrencyLibrary} from "../src/types/Currency.sol";
 
 contract SyncTest is Test, Deployers {
@@ -34,10 +33,22 @@ contract SyncTest is Test, Deployers {
     }
 
     function test_sync_multiple_unlocked() public noIsolate {
-        manager.sync(currency1);
-        assertEq(Currency.unwrap(currency1), Currency.unwrap(manager.getSyncedCurrency()));
-        manager.sync(currency0);
-        assertEq(Currency.unwrap(currency0), Currency.unwrap(manager.getSyncedCurrency()));
+        Actions[] memory actions = new Actions[](4);
+        bytes[] memory params = new bytes[](4);
+
+        actions[0] = Actions.SYNC;
+        params[0] = abi.encode(currency1);
+
+        actions[1] = Actions.ASSERT_SYNCED_CURRENCY_EQUALS;
+        params[1] = abi.encode(currency1);
+
+        actions[2] = Actions.SYNC;
+        params[2] = abi.encode(currency0);
+
+        actions[3] = Actions.ASSERT_SYNCED_CURRENCY_EQUALS;
+        params[3] = abi.encode(currency0);
+
+        actionsRouter.executeActions(actions, params);
     }
 
     function test_sync_balanceIsZero() public {

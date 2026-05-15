@@ -6,9 +6,14 @@ import {Currency} from "../types/Currency.sol";
 import {CurrencyReserves} from "./CurrencyReserves.sol";
 import {NonzeroDeltaCount} from "./NonzeroDeltaCount.sol";
 import {Lock} from "./Lock.sol";
+import {EpochState} from "./EpochState.sol";
 
 /// @notice A helper library to provide state getters that use exttload
 library TransientStateLibrary {
+    function currentEpoch(IPoolManager manager) internal view returns (uint256) {
+        return uint256(manager.exttload(EpochState.EPOCH_SLOT));
+    }
+
     /// @notice returns the reserves for the synced currency
     /// @param manager The pool manager contract.
 

@@ -1,5 +1,6 @@
 # if you add a file here, add it to `.npmignore` too
 artifacts/
+broadcast/
 cache/
 crytic-export/
 node_modules/
@@ -7,3 +8,10 @@ typechain/
 foundry-out/
 .vscode/
 out/
+.forge-snapshots/
+
+# local environment / logs
+.env
+.env.*
+*.log
+plan.md

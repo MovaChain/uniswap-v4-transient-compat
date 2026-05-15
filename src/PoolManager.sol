@@ -26,6 +26,7 @@ import {CurrencyReserves} from "./libraries/CurrencyReserves.sol";
 import {Extsload} from "./Extsload.sol";
 import {Exttload} from "./Exttload.sol";
 import {CustomRevert} from "./libraries/CustomRevert.sol";
+import {EpochState} from "./libraries/EpochState.sol";
 
 //  4
 //   44
@@ -111,6 +112,11 @@ contract PoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909Claim
 
         if (NonzeroDeltaCount.read() != 0) CurrencyNotSettled.selector.revertWith();
         Lock.lock();
+    }
+
+    function _exttload(bytes32 slot) internal view override returns (bytes32 value) {
+        if (slot == EpochState.EPOCH_SLOT) return bytes32(EpochState.currentEpoch());
+        return EpochState.exttload(slot);
     }
 
     /// @inheritdoc IPoolManager
@@ -276,7 +282,7 @@ contract PoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909Claim
     }
 
     /// @inheritdoc IPoolManager
-    function sync(Currency currency) external {
+    function sync(Currency currency) external onlyWhenUnlocked {
         // address(0) is used for the native currency
         if (currency.isAddressZero()) {
             // The reserves balance is not used for native settling, so we only need to reset the currency.

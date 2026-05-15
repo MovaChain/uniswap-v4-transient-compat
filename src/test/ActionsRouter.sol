@@ -21,6 +21,7 @@ enum Actions {
     CLEAR,
     ASSERT_BALANCE_EQUALS,
     ASSERT_RESERVES_EQUALS,
+    ASSERT_SYNCED_CURRENCY_EQUALS,
     ASSERT_DELTA_EQUALS,
     ASSERT_NONZERO_DELTA_COUNT_EQUALS,
     TRANSFER_FROM,
@@ -75,6 +76,8 @@ contract ActionsRouter is IUnlockCallback, Test {
                 _assertBalanceEquals(param);
             } else if (action == Actions.ASSERT_RESERVES_EQUALS) {
                 _assertReservesEquals(param);
+            } else if (action == Actions.ASSERT_SYNCED_CURRENCY_EQUALS) {
+                _assertSyncedCurrencyEquals(param);
             } else if (action == Actions.ASSERT_DELTA_EQUALS) {
                 _assertDeltaEquals(param);
             } else if (action == Actions.ASSERT_NONZERO_DELTA_COUNT_EQUALS) {
@@ -144,6 +147,15 @@ contract ActionsRouter is IUnlockCallback, Test {
     function _assertReservesEquals(bytes memory params) internal view {
         uint256 expectedReserves = abi.decode(params, (uint256));
         assertEq(manager.getSyncedReserves(), expectedReserves, "reserves value incorrect");
+    }
+
+    function _assertSyncedCurrencyEquals(bytes memory params) internal view {
+        Currency expectedCurrency = abi.decode(params, (Currency));
+        assertEq(
+            Currency.unwrap(manager.getSyncedCurrency()),
+            Currency.unwrap(expectedCurrency),
+            "synced currency incorrect"
+        );
     }
 
     function _assertDeltaEquals(bytes memory params) internal view {

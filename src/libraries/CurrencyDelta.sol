@@ -2,12 +2,12 @@
 pragma solidity ^0.8.24;
 
 import {Currency} from "../types/Currency.sol";
+import {EpochState} from "./EpochState.sol";
 
 /// @title a library to store callers' currency deltas in transient storage
 /// @dev this library implements the equivalent of a mapping, as transient storage can only be accessed in assembly
 library CurrencyDelta {
-    /// @notice calculates which storage slot a delta should be stored in for a given account and currency
-    function _computeSlot(address target, Currency currency) internal pure returns (bytes32 hashSlot) {
+    function _computeKey(address target, Currency currency) internal pure returns (bytes32 hashSlot) {
         assembly ("memory-safe") {
             mstore(0, and(target, 0xffffffffffffffffffffffffffffffffffffffff))
             mstore(32, and(currency, 0xffffffffffffffffffffffffffffffffffffffff))
@@ -16,10 +16,7 @@ library CurrencyDelta {
     }
 
     function getDelta(Currency currency, address target) internal view returns (int256 delta) {
-        bytes32 hashSlot = _computeSlot(target, currency);
-        assembly ("memory-safe") {
-            delta := tload(hashSlot)
-        }
+        delta = EpochState.getDelta(target, currency);
     }
 
     /// @notice applies a new currency delta for a given account and currency
@@ -29,14 +26,6 @@ library CurrencyDelta {
         internal
         returns (int256 previous, int256 next)
     {
-        bytes32 hashSlot = _computeSlot(target, currency);
-
-        assembly ("memory-safe") {
-            previous := tload(hashSlot)
-        }
-        next = previous + delta;
-        assembly ("memory-safe") {
-            tstore(hashSlot, next)
-        }
+        (previous, next) = EpochState.applyDelta(target, currency, delta);
     }
 }

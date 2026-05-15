@@ -1,7 +1,15 @@
 artifacts/
+broadcast/
 cache/
 crytic-export/
 node_modules/
 typechain/
 foundry-out/
 .vscode/
+out/
+.forge-snapshots/
+
+# local environment / logs
+.env
+.env.*
+*.log

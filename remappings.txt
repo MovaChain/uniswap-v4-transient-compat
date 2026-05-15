@@ -3,4 +3,5 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 hardhat/=node_modules/hardhat/
+mova-transient-compat-library/=../mova-transient-compat-library/
 solmate/=lib/solmate/

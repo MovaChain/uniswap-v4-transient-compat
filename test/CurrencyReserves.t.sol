@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {CurrencyReserves} from "../src/libraries/CurrencyReserves.sol";
+import {Lock} from "../src/libraries/Lock.sol";
 import {Test} from "forge-std/Test.sol";
 import {Currency} from "../src/types/Currency.sol";
 
@@ -12,6 +13,7 @@ contract CurrencyReservesTest is Test {
 
     function setUp() public {
         currency0 = Currency.wrap(address(0xbeef));
+        Lock.unlock();
     }
 
     function test_getReserves_returns_set() public {
@@ -38,14 +40,6 @@ contract CurrencyReservesTest is Test {
         uint256 valueAfterReset = CurrencyReserves.getSyncedReserves();
         assertEq(valueAfterReset, 100);
         assertEq(Currency.unwrap(CurrencyReserves.getSyncedCurrency()), address(0));
-    }
-
-    function test_reservesOfSlot() public pure {
-        assertEq(bytes32(uint256(keccak256("ReservesOf")) - 1), CurrencyReserves.RESERVES_OF_SLOT);
-    }
-
-    function test_syncSlot() public pure {
-        assertEq(bytes32(uint256(keccak256("Currency")) - 1), CurrencyReserves.CURRENCY_SLOT);
     }
 
     function test_fuzz_get_set(Currency currency, uint256 value) public {

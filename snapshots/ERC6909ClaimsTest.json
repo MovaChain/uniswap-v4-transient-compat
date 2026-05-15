@@ -1,9 +1,9 @@
 {
-  "ERC6909Claims approve": "46323",
-  "ERC6909Claims burn": "29389",
-  "ERC6909Claims mint": "46603",
-  "ERC6909Claims transfer": "51756",
-  "ERC6909Claims transferFrom as operator": "54437",
-  "ERC6909Claims transferFrom with approval": "59939",
-  "ERC6909Claims transferFrom with infinite approval": "56770"
+  "ERC6909Claims approve": "24822",
+  "ERC6909Claims burn": "3235",
+  "ERC6909Claims mint": "25097",
+  "ERC6909Claims transfer": "25457",
+  "ERC6909Claims transferFrom as operator": "25991",
+  "ERC6909Claims transferFrom with approval": "28705",
+  "ERC6909Claims transferFrom with infinite approval": "28330"
 }
