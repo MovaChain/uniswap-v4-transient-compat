@@ -13,3 +13,4 @@ out/
 .env
 .env.*
 *.log
+local-docs/

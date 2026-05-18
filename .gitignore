@@ -15,3 +15,4 @@ out/
 .env.*
 *.log
 plan.md
+local-docs/
