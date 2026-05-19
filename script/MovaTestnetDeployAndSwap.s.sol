@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+// begin edit
 import {Script, console2} from "forge-std/Script.sol";
 import {IHooks} from "../src/interfaces/IHooks.sol";
 import {IPoolManager} from "../src/interfaces/IPoolManager.sol";
@@ -131,3 +132,4 @@ contract MovaTestnetDeployAndSwap is Script {
         console2.logInt(delta.amount1());
     }
 }
+// end edit

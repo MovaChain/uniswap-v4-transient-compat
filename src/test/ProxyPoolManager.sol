@@ -25,7 +25,9 @@ import {CurrencyReserves} from "../libraries/CurrencyReserves.sol";
 import {Extsload} from "../Extsload.sol";
 import {Exttload} from "../Exttload.sol";
 import {CustomRevert} from "../libraries/CustomRevert.sol";
+// begin edit
 import {EpochState} from "../libraries/EpochState.sol";
+// end edit
 
 /// @notice A proxy pool manager that delegates calls to the real/delegate pool manager
 contract ProxyPoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909Claims, Extsload, Exttload {
@@ -69,8 +71,15 @@ contract ProxyPoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909
     }
 
     function _exttload(bytes32 slot) internal view override returns (bytes32 value) {
+        // begin edit
+        // Historical implementation lived in Exttload.exttload:
+        // assembly ("memory-safe") {
+        //     mstore(0, tload(slot))
+        //     return(0, 0x20)
+        // }
         if (slot == EpochState.EPOCH_SLOT) return bytes32(EpochState.currentEpoch());
-        return EpochState.exttload(slot);
+        return EpochState.load(slot);
+        // end edit
     }
 
     /// @inheritdoc IPoolManager
@@ -141,7 +150,10 @@ contract ProxyPoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909
         return abi.decode(result, (BalanceDelta));
     }
 
+    // begin edit
     /// @inheritdoc IPoolManager
+    // Historical signature:
+    // function sync(Currency currency) public {
     function sync(Currency currency) public onlyWhenUnlocked {
         // address(0) is used for the native currency
         if (currency.isAddressZero()) {
@@ -152,6 +164,7 @@ contract ProxyPoolManager is IPoolManager, ProtocolFees, NoDelegateCall, ERC6909
             CurrencyReserves.syncCurrencyAndReserves(currency, balance);
         }
     }
+    // end edit
 
     /// @inheritdoc IPoolManager
     function take(Currency currency, address to, uint256 amount) external onlyWhenUnlocked noDelegateCall {

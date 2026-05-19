@@ -2,13 +2,17 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
+// begin edit
 import {Lock} from "../../src/libraries/Lock.sol";
+// end edit
 import {NonzeroDeltaCount} from "../../src/libraries/NonzeroDeltaCount.sol";
 
 contract NonzeroDeltaCountTest is Test {
+    // begin edit
     function setUp() public {
         Lock.unlock();
     }
+    // end edit
 
     function test_incrementNonzeroDeltaCount() public {
         assertEq(NonzeroDeltaCount.read(), 0);

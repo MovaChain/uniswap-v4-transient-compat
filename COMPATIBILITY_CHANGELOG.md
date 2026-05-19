@@ -1,157 +1,149 @@
-# Uniswap v4 Non-Transient Storage Compatibility Changelog
+# Compatibility Changelog
 
-## Background
+Updated: 2026-05-19
 
-This version targets EVM chains that do not support the `TLOAD/TSTORE` transient storage opcodes. Uniswap v4 originally relies on transient storage to keep temporary state during a single `unlock()` lifecycle, including lock state, currency deltas, synced reserves, nonzero delta count, and related session data.
+## Goal
 
-This change migrates that session-scoped data to regular storage and isolates each `unlock()` lifecycle by epoch, preventing stale state from being read across transactions or across sessions.
+The current version targets EVM chains that do not support EIP-1153 `TLOAD/TSTORE`. The project no longer assumes native transient storage support. Instead, it provides simulated transient load/store entry points inside the contracts.
 
-## Final Implementation
+Core requirements:
 
-### 1. Epoch-Scoped Storage
+- `EpochState` is responsible only for the simulated transient session and raw `bytes32` key reads/writes.
+- Business semantics remain in the original business libraries, for example `CurrencyDelta.getDelta/applyDelta` and `CurrencyReserves.getSyncedCurrency`.
+- `EpochState` must not implement business-level APIs.
+- Solidity edits are wrapped with `// begin edit` / `// end edit` comments, using the historical code from `46c6834698c48bc4a463a86d8420f4eb1d7f3b75` as the reference.
+- New code blocks are wrapped only with `begin edit` / `end edit`; no `New file` or `No historical` fields are used.
 
-Added `src/libraries/EpochState.sol` to centralize the session-state data that used to be backed by transient storage.
+## Design
 
-The scoped key is derived as:
+### EpochState
 
-```solidity
-bytes32 scopedKey = keccak256(
-    abi.encode(
-        STORAGE_NAMESPACE,
-        address(this),
-        currentEpoch(),
-        slot
-    )
-);
-```
+`src/libraries/EpochState.sol` is now the only low-level entry point for simulated transient storage.
 
-Where:
+It provides:
 
-- `STORAGE_NAMESPACE` isolates this compatibility layer's storage namespace.
-- `address(this)` isolates different manager instances.
-- `currentEpoch()` represents the current `unlock()` lifecycle.
-- `slot` is the logical slot originally used by Uniswap v4 transient storage.
+- `enter()` / `exit()`: enter and exit one simulated transient session.
+- `isActive()` / `currentEpoch()`: query the session state and epoch.
+- `scopedSlot(bytes32)`: map a raw key to the storage slot scoped to the current epoch.
+- `load/store/clear`: read, write, and clear by raw `bytes32` key.
+- `loadUint256/storeUint256`, `loadInt256/storeInt256`, and `loadAddress/storeAddress`: thin typed wrappers.
 
-Storage written under historical epochs is not actively cleared, but each new epoch uses different scoped keys, so old state cannot pollute later sessions.
+### Lock
 
-### 2. Unlock Lifecycle
-
-`PoolManager.unlock()` now follows this lifecycle:
-
-1. Check whether the manager is already unlocked.
-2. Advance the epoch through `Lock.unlock()`.
-3. Mark the current epoch as unlocked.
-4. Execute `IUnlockCallback(msg.sender).unlockCallback(data)`.
-5. Check `NonzeroDeltaCount.read() == 0`.
-6. Mark the current epoch as locked.
-
-The settlement constraints of `unlock()` keep the original Uniswap v4 business semantics. This change only replaces the underlying storage mechanism for related session state.
-
-### 3. Lock / Delta / Reserves / Count Storage Replacement
-
-The following libraries no longer use `tload/tstore` directly and now read/write epoch-scoped storage through `EpochState`:
-
-- `src/libraries/Lock.sol`
-- `src/libraries/CurrencyDelta.sol`
-- `src/libraries/CurrencyReserves.sol`
-- `src/libraries/NonzeroDeltaCount.sol`
-
-The covered state includes:
-
-- unlocked state
-- per `(target, currency)` currency deltas
-- currency and reserve snapshots written by `sync()`
-- nonzero delta count within the current unlock lifecycle
-
-When the manager is locked, reads of session-scoped state return empty values. Semantically, this is equivalent to transient storage being cleared at the end of the transaction.
-
-### 4. `exttload` Compatibility Layer
-
-`src/Exttload.sol` keeps the original external `IExttload` interface:
-
-```solidity
-function exttload(bytes32 slot) external view returns (bytes32);
-function exttload(bytes32[] calldata slots) external view returns (bytes32[] memory);
-```
-
-The actual read logic is implemented by `PoolManager._exttload()` and `ProxyPoolManager._exttload()`:
-
-- Reading `EpochState.EPOCH_SLOT` returns the current epoch.
-- Reading any other logical slot maps it to the current epoch's scoped storage.
-- When the manager is locked, session-state reads other than the epoch return `0`.
-
-Third-party integrations can still use `TransientStateLibrary`:
-
-```solidity
-manager.isUnlocked();
-manager.currencyDelta(target, currency);
-manager.getSyncedCurrency();
-manager.getSyncedReserves();
-manager.getNonzeroDeltaCount();
-manager.currentEpoch();
-```
-
-These helpers still go through `manager.exttload(logicalSlot)`, preserving the original v4 transient-state read pattern.
-
-### 5. `sync()` Lock-State Protection
-
-Both `PoolManager.sync()` and `ProxyPoolManager.sync()` are now protected by `onlyWhenUnlocked`.
-
-This is required for the storage-backed compatibility implementation: original transient storage is automatically cleared at transaction end, while regular storage is not. If `sync()` were allowed while locked, it could write state that should only exist inside an unlock lifecycle.
+`src/libraries/Lock.sol` no longer calls `tstore/tload`.
 
 Current behavior:
 
-- Calling `sync()` while locked reverts with `ManagerLocked`.
-- While unlocked, `sync()`, ERC20 transfer, and `settle()` must all happen within the same `unlockCallback`.
+- `unlock()` calls `EpochState.enter()` and writes `IS_UNLOCKED_SLOT = 1`.
+- `lock()` writes `IS_UNLOCKED_SLOT = 0` and calls `EpochState.exit()`.
+- `isUnlocked()` checks `EpochState.load(IS_UNLOCKED_SLOT)`.
 
-### 6. Test Helper Adjustments
+The historical `tstore/tload` code is preserved inside begin/end comment blocks.
 
-The following test helper contracts and test cases were updated for epoch-scoped storage behavior:
+### CurrencyDelta
 
-- `src/test/ActionsRouter.sol`
-- `src/test/ProxyPoolManager.sol`
-- `src/test/SkipCallsTestHook.sol`
-- `test/PoolManager.t.sol`
-- `test/Sync.t.sol`
-- `test/CurrencyReserves.t.sol`
-- `test/libraries/NonzeroDeltaCount.t.sol`
+`src/libraries/CurrencyDelta.sol` keeps the business APIs:
 
-Key adjustments include:
+- `getDelta(Currency,address)`
+- `applyDelta(Currency,address,int128)`
 
-- Reading manager session state through `TransientStateLibrary`.
-- Moving `sync()`-related tests into an unlocked lifecycle.
-- Adding coverage that verifies `sync()` reverts with `ManagerLocked` when called while locked.
+The slot computation function keeps the Uniswap v4 original name:
 
-### 7. Testnet Helper Contracts
+- `_computeSlot(address,Currency)`
 
-Added the following testnet helper contracts:
+In the current implementation, the business library computes the raw slot first, then calls `EpochState.loadInt256/storeInt256`.
 
-- `src/testnet/MovaTestRouter.sol`
-- `src/testnet/MovaNamedTestToken.sol`
+### CurrencyReserves
 
-`MovaTestRouter` is used on testnets to call `modifyLiquidity()` and `swap()` step by step:
+`src/libraries/CurrencyReserves.sol` keeps the business APIs:
 
-1. An external user calls the router.
-2. The router calls `PoolManager.unlock()`.
-3. The router calls `modifyLiquidity()` or `swap()` inside `unlockCallback()`.
-4. Based on the returned `BalanceDelta`, the router performs `settle()` or `take()` for both currencies.
-5. `PoolManager.unlock()` completes the current unlock lifecycle.
+- `getSyncedCurrency()`
+- `resetCurrency()`
+- `syncCurrencyAndReserves(Currency,uint256)`
+- `getSyncedReserves()`
 
-This flow covers adding liquidity, swapping, and removing liquidity for both native-token and token-token pools.
+These functions pass the original transient slots as raw keys to `EpochState`.
 
-## Behavioral Results
+### NonzeroDeltaCount
 
-The current compatibility version behaves as follows:
+`src/libraries/NonzeroDeltaCount.sol` uses `EpochState.loadUint256/storeUint256` instead of `tload/tstore`.
 
-- It no longer depends on the `TLOAD/TSTORE` opcodes.
-- Each `unlock()` uses a fresh epoch to isolate session state.
-- Session-state reads return empty values while the manager is locked.
-- `sync()` requires the manager to be unlocked, preventing writes to state that should only exist during an unlock lifecycle.
-- Third-party reads still work through `TransientStateLibrary` + `exttload`; no new external `PoolManager` getters are required.
+`increment()` / `decrement()` use `unchecked`, preserving semantics consistent with the Uniswap v4 original `tload/tstore` implementation.
 
-## Verification
+### Exttload / PoolManager
 
-The following key test slices were run and passed:
+`src/Exttload.sol` changes the public `exttload` behavior to call an internal virtual function:
+
+- `exttload(bytes32)` -> `_exttload(slot)`
+- `exttload(bytes32[])` -> loops over `_exttload`
+
+`src/PoolManager.sol` implements `_exttload(bytes32)`:
+
+- If the slot is `EpochState.EPOCH_SLOT`, it returns the current epoch.
+- Other slots return `EpochState.load(slot)`.
+
+This keeps simulated transient state observable externally through `exttload`.
+
+### PoolManager.sync
+
+`PoolManager.sync(Currency)` now has `onlyWhenUnlocked`.
+
+This ensures the synchronized state in `CurrencyReserves` is only used inside the unlock lifecycle and prevents simulated transient state from being polluted while locked.
+
+### TransientStateLibrary
+
+`src/libraries/TransientStateLibrary.sol` adds `currentEpoch(IPoolManager)`, which reads the current epoch through `EpochState.EPOCH_SLOT` and `exttload`.
+
+## Test Helper Contracts
+
+### MovaTestRouter
+
+`src/testnet/MovaTestRouter.sol` is used for manual testnet calls:
+
+- `modifyLiquidity`
+- `swap`
+
+The router calls `PoolManager.unlock()`, executes the operation in `unlockCallback`, and completes `settle` or `take` in the same unlock lifecycle, ensuring deltas are settled before the manager locks again.
+
+### MovaNamedTestToken
+
+`src/testnet/MovaNamedTestToken.sol` is the ERC20 used on testnets.
+
+### MovaExactInputFeeHook
+
+`src/testnet/MovaExactInputFeeHook.sol` is the testnet hook:
+
+- It charges a 5% fee from the output asset of exact-input swaps.
+- The hook uses the simulated transient session from `mova-transient-compat-library`.
+- `beforeSwap()` writes the input amount and direction.
+- `afterSwap()` reads and validates the input amount and direction, charges the fee, then exits the session.
+
+### MovaHookDeployer
+
+`src/testnet/MovaHookDeployer.sol` deploys the hook with CREATE2 so the hook address low 14 bits satisfy the Uniswap v4 hook permission flags.
+
+## Comment Convention
+
+Solidity edits are wrapped in this format:
+
+```solidity
+// begin edit
+// historical code or note
+new implementation
+// end edit
+```
+
+For new files or new code blocks, only this wrapper is used:
+
+```solidity
+// begin edit
+new implementation
+// end edit
+```
+
+## Local Verification
+
+The current version has been verified locally with:
 
 ```bash
 forge test --match-path 'test/PoolManager.t.sol' --match-test 'test_(sync|settle|unlock|swap|addLiquidity|removeLiquidity|take|collectProtocolFees)'
@@ -159,20 +151,18 @@ forge test --match-path 'test/Sync.t.sol'
 forge test --match-path 'test/libraries/Lock.t.sol'
 forge test --match-path 'test/libraries/NonzeroDeltaCount.t.sol'
 forge test --match-path 'test/CurrencyReserves.t.sol'
+forge test --match-path 'test/MovaExactInputFeeHook.t.sol'
+forge build
+git diff --check
 ```
 
-The following testnet flow was verified:
+Results:
 
-- Deploy `PoolManager`
-- Deploy the test router
-- Deploy test tokens
-- Approve the router
-- Initialize a native-token pool
-- Initialize a token-token pool
-- Add liquidity
-- Swap in both directions
-- Remove partial liquidity
-- Swap in the reverse direction
-- Remove the remaining liquidity
-
-All on-chain transactions succeeded. Liquidity, swap deltas, fees, final balances, and epoch increments in the key events matched expectations.
+- PoolManager-related tests: 63 passed.
+- Sync tests: 12 passed.
+- Lock tests: 2 passed.
+- NonzeroDeltaCount tests: 3 passed.
+- CurrencyReserves tests: 4 passed.
+- MovaExactInputFeeHook tests: 3 passed.
+- `forge build` passed.
+- `git diff --check` passed.

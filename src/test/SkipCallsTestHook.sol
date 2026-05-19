@@ -141,9 +141,17 @@ contract SkipCallsTestHook is BaseTestHooks, Test {
     function _swap(PoolKey calldata key, SwapParams memory params, bytes calldata hookData) public {
         IPoolManager(manager).swap(key, params, hookData);
         address payer = abi.decode(hookData, (address));
+        // begin edit
+        // Historical implementation:
+        // int256 delta0 = IPoolManager(manager).currencyDelta(address(this), key.currency0);
         int256 delta0 = manager.currencyDelta(address(this), key.currency0);
+        // end edit
         assertEq(delta0, params.amountSpecified);
+        // begin edit
+        // Historical implementation:
+        // int256 delta1 = IPoolManager(manager).currencyDelta(address(this), key.currency1);
         int256 delta1 = manager.currencyDelta(address(this), key.currency1);
+        // end edit
         assert(delta1 > 0);
         key.currency0.settle(manager, payer, uint256(-delta0), false);
         key.currency1.take(manager, payer, uint256(delta1), false);
@@ -152,8 +160,13 @@ contract SkipCallsTestHook is BaseTestHooks, Test {
     function _addLiquidity(PoolKey calldata key, ModifyLiquidityParams memory params, bytes calldata hookData) public {
         IPoolManager(manager).modifyLiquidity(key, params, hookData);
         address payer = abi.decode(hookData, (address));
+        // begin edit
+        // Historical implementation:
+        // int256 delta0 = IPoolManager(manager).currencyDelta(address(this), key.currency0);
+        // int256 delta1 = IPoolManager(manager).currencyDelta(address(this), key.currency1);
         int256 delta0 = manager.currencyDelta(address(this), key.currency0);
         int256 delta1 = manager.currencyDelta(address(this), key.currency1);
+        // end edit
 
         assert(delta0 < 0 || delta1 < 0);
         assert(!(delta0 > 0 || delta1 > 0));
@@ -172,8 +185,13 @@ contract SkipCallsTestHook is BaseTestHooks, Test {
         // hook removes liquidity
         IPoolManager(manager).modifyLiquidity(key, params, hookData);
         address payer = abi.decode(hookData, (address));
+        // begin edit
+        // Historical implementation:
+        // int256 delta0 = IPoolManager(manager).currencyDelta(address(this), key.currency0);
+        // int256 delta1 = IPoolManager(manager).currencyDelta(address(this), key.currency1);
         int256 delta0 = manager.currencyDelta(address(this), key.currency0);
         int256 delta1 = manager.currencyDelta(address(this), key.currency1);
+        // end edit
 
         assert(delta0 < 0 || delta1 < 0);
         assert(!(delta0 > 0 || delta1 > 0));
@@ -185,8 +203,13 @@ contract SkipCallsTestHook is BaseTestHooks, Test {
     function _donate(PoolKey calldata key, uint256 amt0, uint256 amt1, bytes calldata hookData) public {
         IPoolManager(manager).donate(key, amt0, amt1, hookData);
         address payer = abi.decode(hookData, (address));
+        // begin edit
+        // Historical implementation:
+        // int256 delta0 = IPoolManager(manager).currencyDelta(address(this), key.currency0);
+        // int256 delta1 = IPoolManager(manager).currencyDelta(address(this), key.currency1);
         int256 delta0 = manager.currencyDelta(address(this), key.currency0);
         int256 delta1 = manager.currencyDelta(address(this), key.currency1);
+        // end edit
         key.currency0.settle(manager, payer, uint256(-delta0), false);
         key.currency1.settle(manager, payer, uint256(-delta1), false);
     }

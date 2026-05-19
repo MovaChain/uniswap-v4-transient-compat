@@ -33,6 +33,7 @@ contract SyncTest is Test, Deployers {
     }
 
     function test_sync_multiple_unlocked() public noIsolate {
+        // begin edit
         Actions[] memory actions = new Actions[](4);
         bytes[] memory params = new bytes[](4);
 
@@ -49,6 +50,7 @@ contract SyncTest is Test, Deployers {
         params[3] = abi.encode(currency0);
 
         actionsRouter.executeActions(actions, params);
+        // end edit
     }
 
     function test_sync_balanceIsZero() public {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+// begin edit
 import {IPoolManager} from "../interfaces/IPoolManager.sol";
 import {MovaExactInputFeeHook} from "./MovaExactInputFeeHook.sol";
 
@@ -18,3 +19,4 @@ contract MovaHookDeployer {
         return address(uint160(uint256(hash)));
     }
 }
+// end edit

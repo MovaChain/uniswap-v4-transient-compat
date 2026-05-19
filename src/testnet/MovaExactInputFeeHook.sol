@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+// begin edit
 import {MovaTransientCompat} from "mova-transient-compat-library/src/MovaTransientCompat.sol";
 
 import {IHooks} from "../interfaces/IHooks.sol";
@@ -127,3 +128,4 @@ contract MovaExactInputFeeHook is BaseTestHooks {
         );
     }
 }
+// end edit

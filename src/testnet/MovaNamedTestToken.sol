@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+// begin edit
 import {IERC20Minimal} from "../interfaces/external/IERC20Minimal.sol";
 
 contract MovaNamedTestToken is IERC20Minimal {
@@ -46,3 +47,4 @@ contract MovaNamedTestToken is IERC20Minimal {
         return true;
     }
 }
+// end edit

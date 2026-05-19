@@ -2,7 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {CurrencyReserves} from "../src/libraries/CurrencyReserves.sol";
+// begin edit
 import {Lock} from "../src/libraries/Lock.sol";
+// end edit
 import {Test} from "forge-std/Test.sol";
 import {Currency} from "../src/types/Currency.sol";
 
@@ -13,7 +15,9 @@ contract CurrencyReservesTest is Test {
 
     function setUp() public {
         currency0 = Currency.wrap(address(0xbeef));
+        // begin edit
         Lock.unlock();
+        // end edit
     }
 
     function test_getReserves_returns_set() public {

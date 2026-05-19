@@ -998,6 +998,7 @@ contract PoolManagerTest is Test, Deployers {
         manager.burn(address(this), key.currency0.toId(), 1);
     }
 
+    // begin edit
     function test_sync_locked_revertsWithManagerLocked() public noIsolate {
         manager.setProtocolFeeController(address(this));
         // currency1 is never native
@@ -1020,6 +1021,7 @@ contract PoolManagerTest is Test, Deployers {
         vm.expectRevert(IProtocolFees.ProtocolFeeCurrencySynced.selector);
         actionsRouter.executeActions(actions, params);
     }
+    // end edit
 
     function test_collectProtocolFees_unlocked_revertsWithProtocolFeeCurrencySynced() public {
         manager.setProtocolFeeController(address(actionsRouter));

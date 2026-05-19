@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+// begin edit
 import {Script, console2} from "forge-std/Script.sol";
 
 import {IHooks} from "../src/interfaces/IHooks.sol";
@@ -125,3 +126,4 @@ contract MovaTestnetExactInputFeeHook is Script {
         revert("salt not found");
     }
 }
+// end edit
